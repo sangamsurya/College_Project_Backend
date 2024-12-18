@@ -64,7 +64,8 @@ def decode_image(image_path):
     try:
         decoded_data = base64.b64decode(combined_data).decode('utf-8')
     except (base64.binascii.Error, UnicodeDecodeError):
-        raise ValueError("The extracted data is not a valid base64 string.")
+        return ({"status": "fail", "message": "Document Not Authenticated"}), 404
+
     
     # Now split the decoded string into unique ID and encrypted text
     try:

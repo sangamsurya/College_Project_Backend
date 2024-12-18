@@ -51,7 +51,7 @@ def decode():
     # Find the document using the unique ID
     document = collection.find_one({"unique_id": unique_id})
     if not document:
-        return jsonify({"status": "fail", "message": "Document not found"}), 404
+        return jsonify({"status": "fail", "message": "Document Not Authenticated or Not found"}), 404
 
     # Retrieve the stored encrypted signature and key
     stored_signature = base64.b64decode(document['encrypted_signature'])
@@ -59,10 +59,8 @@ def decode():
 
     # Ensure decoded_text is a string
     # Convert decoded_text properly to remove the b'...' artifacts if present
-    if isinstance(decoded_text, bytes):
-        decoded_string = decoded_text.decode('utf-8', errors='ignore')
-    else:
-        decoded_string = decoded_text.strip("b'").strip("'")
+    
+    decoded_string = decoded_text.strip("b'").strip("'")
 
     # Decode the stored signature into a string
     stored_string = stored_signature.decode('utf-8', errors='ignore')
@@ -77,7 +75,6 @@ def decode():
         return jsonify({"status": "success", "message": "Document Authenticated"}), 200
     else:
         return jsonify({"status": "fail", "message": "Document Not Authenticated"}), 404
-
 
 if __name__ == '__main__':
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)

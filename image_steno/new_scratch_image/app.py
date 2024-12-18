@@ -3,7 +3,6 @@ from PIL import Image
 import numpy as np
 import uuid
 import os
-import logging
 
 from pymongo import MongoClient
 import hashlib
@@ -18,9 +17,6 @@ collection = db['embedded_images']
 app = Flask(__name__)
 UPLOAD_FOLDER = 'static/'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-# Configure logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Constants
 END_MARKER = "11111111"  # Binary marker to signify the end of embedded data
@@ -56,6 +52,7 @@ def encode_image_and_store_with_id(image_path, secret_image_path, unique_id):
 
     # Combine unique ID, size, and image data
     full_binary_data = unique_id_binary + size_binary + secret_binary
+
     print(f"Unique ID binary: {unique_id_binary}")
     print(f"Binary size data: {size_binary}")
     print(f"Total binary length: {len(full_binary_data)}")
@@ -81,8 +78,7 @@ def encode_image_and_store_with_id(image_path, secret_image_path, unique_id):
     # Compute the hash of the secret image
     secret_image_bytes = secret_array.tobytes()
     secret_hash = hashlib.sha256(secret_image_bytes).hexdigest()
-    logging.debug(f"Secret image hash: {secret_hash}")
-
+    
     # Store the secret hash and unique ID in MongoDB
     collection.insert_one({
         "unique_id": unique_id,
@@ -91,7 +87,6 @@ def encode_image_and_store_with_id(image_path, secret_image_path, unique_id):
     })
 
     return output_path
-
 
 def extract_and_verify_image_with_id(stego_image_path):
     # Load the stego image
@@ -104,8 +99,7 @@ def extract_and_verify_image_with_id(stego_image_path):
     # Extract the first 128 bits for the unique ID
     unique_id_binary = ''.join([str(flat_stego_array[i] & 1) for i in range(288)])
     unique_id = ''.join(chr(int(unique_id_binary[i:i + 8], 2)) for i in range(0, 288, 8)).strip('\x00')
-    # logging.debug(f"Extracted unique ID: {unique_id}")
-
+    
     print(unique_id)
 
     # Query MongoDB for the original hash using the unique ID
@@ -137,26 +131,16 @@ def extract_and_verify_image_with_id(stego_image_path):
     extracted_hash = hashlib.sha256(extracted_image_bytes).hexdigest()
     print(f"Extracted image hash: {extracted_hash}")
 
-    # Compare the hashes
-    if extracted_hash == record["secret_hash"]:
-        print("The extracted image matches the original secret image.")
-        match_status = True
-    else:
-        print("The extracted image does NOT match the original secret image.")
-        match_status = False
-
-    # Save the extracted secret image
     secret_image = Image.fromarray(secret_array, mode='L')
     output_path = os.path.join(app.config['UPLOAD_FOLDER'], 'extracted_image.png')
     secret_image.save(output_path, format='PNG', optimize=True)
-
-    return {
-        "match_status": match_status,
-        "extracted_image_path": output_path,
-        "unique_id": unique_id
-    }
-
-
+    
+    # Compare the hashes
+    if extracted_hash == record["secret_hash"]:
+        return {"match_status": "success", "message": "Document Authenticated"}
+    else:
+        return {"match_status": "fail", "message": "Document Not Authenticated"}
+    
 
 # Flask Routes
 @app.route('/')
